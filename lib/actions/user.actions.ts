@@ -30,7 +30,11 @@ export const getUserInfo = async ({ userId }: getUserInfoProps) => {
       DATABASE_ID!,
       USER_COLLECTION_ID!,
       [Query.equal('userId', [userId])]
-    )
+    );
+    
+    if (!user || user.documents.length === 0) {
+      throw new Error('Account not found');
+    }
 
     return parseStringify(user.documents[0]);
   } catch (error) {
@@ -165,7 +169,7 @@ export const createBankAccount = async ({
   accountId,
   accessToken,
   fundingSourceUrl,
-  sharableId,
+  shareableId,
 }: createBankAccountProps) => {
   try {
     const { database } = await createAdminClient();
@@ -180,15 +184,15 @@ export const createBankAccount = async ({
         accountId,
         accessToken,
         fundingSourceUrl,
-        sharableId,
+        shareableId,
       }
-    )
-
+    );
+    
     return parseStringify(bankAccount);
   } catch (error) {
-    console.log(error);
+    console.log("Error creating bank account:", error);
   }
-}
+};
 
 export const exchangePublicToken = async ({
   publicToken,
@@ -197,6 +201,8 @@ export const exchangePublicToken = async ({
   try {
     // Exchange public token for access token and item ID
     const response = await plaidClient.itemPublicTokenExchange({
+      client_id: CLIENT_ID,
+      secret: CLIENT_SECRET,
       public_token: publicToken,
     });
 
@@ -205,9 +211,14 @@ export const exchangePublicToken = async ({
     
     // Get account information from Plaid using the access token
     const accountsResponse = await plaidClient.accountsGet({
+      client_id: CLIENT_ID,
+      secret: CLIENT_SECRET,
       access_token: accessToken,
     });
 
+    if (!accountsResponse.data.accounts.length) {
+      throw new Error("No accounts found for the provided public token.");
+    }
     const accountData = accountsResponse.data.accounts[0];
 
     // Create a processor token for Dwolla using the access token and account ID
@@ -228,7 +239,7 @@ export const exchangePublicToken = async ({
     });
     
     // If the funding source URL is not created, throw an error
-    if (!fundingSourceUrl) throw Error;
+    if (!fundingSourceUrl) throw new Error("Funding source creation failed.");
 
     // Create a bank account using the user ID, item ID, account ID, access token, funding source URL, and shareableId ID
     await createBankAccount({
@@ -237,7 +248,7 @@ export const exchangePublicToken = async ({
       accountId: accountData.account_id,
       accessToken,
       fundingSourceUrl,
-      sharableId: encryptId(accountData.account_id),
+      shareableId: encryptId(accountData.account_id),
     });
 
     // Revalidate the path to reflect the changes
