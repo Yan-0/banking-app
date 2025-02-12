@@ -1,12 +1,7 @@
 "use server";
 
 import {
-  ACHClass,
   CountryCode,
-  TransferAuthorizationCreateRequest,
-  TransferCreateRequest,
-  TransferNetwork,
-  TransferType,
 } from "plaid";
 
 import { plaidClient } from "../plaid";
@@ -170,7 +165,7 @@ export const getTransactions = async ({
         accountId: transaction.account_id,
         amount: transaction.amount,
         pending: transaction.pending,
-        category: transaction.category ? transaction.category[0] : "",
+        category: transaction.personal_finance_category?.detailed,
         date: transaction.date,
         image: transaction.logo_url,
       }));
